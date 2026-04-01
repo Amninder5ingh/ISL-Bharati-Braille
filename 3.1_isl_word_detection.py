@@ -28,7 +28,7 @@ prediction_history = deque(maxlen=20)
 word = ""
 last_prediction = ""
 stable_count = 0
-STABLE_THRESHOLD = 30   # adjust speed here
+STABLE_THRESHOLD = 30   # you already set this (good)
 
 print("Camera ready...")
 
@@ -80,7 +80,7 @@ while True:
 
     features = left_hand + right_hand
 
-    final_prediction = ""   # default (for UI)
+    final_prediction = ""
 
     if sum(features) != 0:
 
@@ -93,18 +93,17 @@ while True:
 
         final_prediction = Counter(prediction_history).most_common(1)[0][0]
 
-        # ✅ NEW SIMPLE WORD LOGIC (repeat letters supported)
+        # ✅ WORD LOGIC (same as yours)
         if final_prediction == last_prediction:
             stable_count += 1
         else:
             stable_count = 0
             last_prediction = final_prediction
 
-        # add letter every interval
         if stable_count > 0 and stable_count % STABLE_THRESHOLD == 0:
             word += final_prediction
 
-    # ✅ ALWAYS SHOW SMALL UI BOX
+    # ✅ UI BOX (always visible)
     cv2.rectangle(frame,(20,20),(320,120),(0,0,0),-1)
 
     cv2.putText(frame,
@@ -130,8 +129,11 @@ while True:
     if key == 27:   # ESC
         break
 
-    if key == ord('c'):   # clear word
+    if key == ord('c'):   # clear
         word = ""
+
+    if key == ord(' '):   # ✅ SPACE key
+        word += " "
 
 cap.release()
 cv2.destroyAllWindows()
