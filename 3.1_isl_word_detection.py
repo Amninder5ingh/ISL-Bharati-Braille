@@ -28,7 +28,7 @@ prediction_history = deque(maxlen=20)
 word = ""
 last_prediction = ""
 stable_count = 0
-STABLE_THRESHOLD = 10
+STABLE_THRESHOLD = 30   # adjust speed here
 
 print("Camera ready...")
 
@@ -93,14 +93,15 @@ while True:
 
         final_prediction = Counter(prediction_history).most_common(1)[0][0]
 
-        # ✅ WORD LOGIC
+        # ✅ NEW SIMPLE WORD LOGIC (repeat letters supported)
         if final_prediction == last_prediction:
             stable_count += 1
         else:
             stable_count = 0
             last_prediction = final_prediction
 
-        if stable_count == STABLE_THRESHOLD:
+        # add letter every interval
+        if stable_count > 0 and stable_count % STABLE_THRESHOLD == 0:
             word += final_prediction
 
     # ✅ ALWAYS SHOW SMALL UI BOX
