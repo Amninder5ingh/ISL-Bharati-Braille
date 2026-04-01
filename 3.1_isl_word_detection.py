@@ -7,11 +7,9 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-# Load model and scaler
 model = joblib.load("isl_2hand_model.pkl")
 scaler = joblib.load("isl_2hand_scaler.pkl")
 
-# Mediapipe setup
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
@@ -26,20 +24,23 @@ cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
 prediction_history = deque(maxlen=20)
 
-# 🔥 NEW VARIABLES
-current_word = ""
+# ✅ WORD VARIABLES
+word = ""
 last_prediction = ""
-no_hand_counter = 0
+stable_count = 0
+STABLE_THRESHOLD = 10
 
 print("Camera ready...")
 
 while True:
 
     ret, frame = cap.read()
+
     if not ret:
         continue
 
-    frame = cv2.flip(frame, 1)
+    frame = cv2.flip(frame,1)
+
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     results = hands.process(rgb)
@@ -71,57 +72,65 @@ while True:
             else:
                 right_hand = temp
 
-            mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            mp_draw.draw_landmarks(
+                frame,
+                hand_landmarks,
+                mp_hands.HAND_CONNECTIONS
+            )
 
     features = left_hand + right_hand
 
-    # 🔹 HAND DETECTED
+    final_prediction = ""   # default (for UI)
+
     if sum(features) != 0:
 
-        no_hand_counter = 0
-
-        features = np.array(features).reshape(1, -1)
+        features = np.array(features).reshape(1,-1)
         features = scaler.transform(features)
 
         prediction = model.predict(features)[0]
 
         prediction_history.append(prediction)
+
         final_prediction = Counter(prediction_history).most_common(1)[0][0]
 
-        # Avoid duplicate letters
-        if final_prediction != last_prediction:
-            current_word += str(final_prediction)
+        # ✅ WORD LOGIC
+        if final_prediction == last_prediction:
+            stable_count += 1
+        else:
+            stable_count = 0
             last_prediction = final_prediction
 
-    else:
-        # 🔹 NO HAND
-        no_hand_counter += 1
+        if stable_count == STABLE_THRESHOLD:
+            word += final_prediction
 
-    # 🔥 SPACE when pause
-    if no_hand_counter > 20:
-        current_word += " "
-        last_prediction = ""
-        no_hand_counter = 0
-
-    # Limit length
-    if len(current_word) > 30:
-        current_word = ""
-
-    # Display
-    cv2.rectangle(frame, (30, 30), (800, 120), (0, 0, 0), -1)
+    # ✅ ALWAYS SHOW SMALL UI BOX
+    cv2.rectangle(frame,(20,20),(320,120),(0,0,0),-1)
 
     cv2.putText(frame,
-                current_word,
-                (50, 100),
+                "Letter: " + str(final_prediction),
+                (30,60),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                2,
-                (0, 255, 0),
-                3)
+                0.8,
+                (0,255,0),
+                2)
 
-    cv2.imshow("ISL Word Detection", frame)
+    cv2.putText(frame,
+                "Word: " + word,
+                (30,100),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (255,255,255),
+                2)
 
-    if cv2.waitKey(1) & 0xFF == 27:
+    cv2.imshow("ISL Two Hand Detection",frame)
+
+    key = cv2.waitKey(1) & 0xFF
+
+    if key == 27:   # ESC
         break
+
+    if key == ord('c'):   # clear word
+        word = ""
 
 cap.release()
 cv2.destroyAllWindows()
